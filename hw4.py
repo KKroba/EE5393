@@ -18,10 +18,12 @@ from reportlab.platypus import (
     Table,
     TableStyle,
 )
+from reportlab.pdfgen.canvas import Canvas
 
 
 Perm = tuple[int, int, int, int, int]
 ID: Perm = (1, 2, 3, 4, 5)
+SOURCE_LINK = "https://github.com/KKroba/EE5393/blob/main/hw4.py"
 
 
 def cycle_perm(entries: list[int]) -> Perm:
@@ -205,6 +207,32 @@ class Line:
         return atom_perm(self.when_one if values[self.condition] else self.when_zero)
 
 
+class LinkCanvas(Canvas):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.pages = []
+
+    def showPage(self):
+        self.pages.append(dict(self.__dict__))
+        self._startPage()
+
+    def save(self):
+        page_count = len(self.pages)
+        for i, page in enumerate(self.pages, start=1):
+            self.__dict__.update(page)
+            if i == page_count:
+                self.setFont("Helvetica", 8)
+                self.setFillColor(colors.HexColor("#444444"))
+                self.drawCentredString(letter[0] / 2, 0.32 * inch, SOURCE_LINK)
+                self.linkURL(
+                    SOURCE_LINK,
+                    (0.55 * inch, 0.22 * inch, letter[0] - 0.55 * inch, 0.45 * inch),
+                    relative=0,
+                )
+            super().showPage()
+        super().save()
+
+
 def expand(expr: BoolExpr, target: Sym) -> list[Line]:
     if isinstance(expr, VarExpr):
         return [Line(expr.name, word(target), STAR)]
@@ -329,7 +357,7 @@ def write_text_solution(
     sequence_table: list[list[str]],
 ) -> None:
     with path.open("w", encoding="utf-8") as f:
-        f.write("EE 5393 Homework 3 - Conditional Permutation Solution\n")
+        f.write("EE 5393 Homework 4 - Conditional Permutation Solution\n")
         f.write("Target permutation for every function: A\n\n")
         f.write("Conventions:\n")
         f.write("  The five-number notation is cycle notation, as in the homework.\n")
@@ -356,6 +384,7 @@ def write_text_solution(
             f.write(f"\n{name} = {expr_text(functions[name])}; implement {{{name}: A, *}}\n")
             for idx, line in enumerate(lines, start=1):
                 f.write(f"  {idx:02d}. {line.text()}\n")
+        f.write(f"\nSource link: {SOURCE_LINK}\n")
 
 
 def make_table(data: list[list[str]], font_size: int = 8) -> Table:
@@ -411,7 +440,7 @@ def write_pdf_solution(
     )
 
     story = []
-    story.append(Paragraph("EE 5393 Homework 3", styles["CenterTitle"]))
+    story.append(Paragraph("EE 5393 Homework 4", styles["CenterTitle"]))
     story.append(Paragraph("Conditional Permutation Implementation", styles["Heading2"]))
     story.append(
         Paragraph(
@@ -475,7 +504,7 @@ def write_pdf_solution(
         if idx != len(functions):
             story.append(PageBreak())
 
-    doc.build(story)
+    doc.build(story, canvasmaker=LinkCanvas)
 
 
 def main() -> None:
@@ -486,8 +515,8 @@ def main() -> None:
     sequences = {name: expand(expr, A) for name, expr in functions.items()}
     sequence_table = verify_sequences(functions, sequences)
 
-    text_path = outdir / "ee5393_hw3_solution.txt"
-    pdf_path = outdir / "ee5393_hw3_solution.pdf"
+    text_path = outdir / "hw4_solution.txt"
+    pdf_path = outdir / "hw4.pdf"
     write_text_solution(text_path, identities, functions, sequences, truth_table, sequence_table)
     write_pdf_solution(pdf_path, identities, functions, sequences, truth_table, sequence_table)
 
